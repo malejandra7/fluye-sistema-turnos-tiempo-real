@@ -1,14 +1,64 @@
-# Fluye — turnos en tiempo real que aprenden solos
+# Fluye — gestión de turnos en tiempo real
 
-Fluye es un sistema de gestión de turnos para centros de atención: kiosco, módulos, pantalla de sala, seguimiento en el celular y panel del gestor, todos conectados en vivo.
+**Que la fila se mueva sola, y que el equipo también descanse.**
 
-Va más allá de «pedir turno → llamar → finalizar». Se encarga de tres problemas que los sistemas básicos dejan al equipo:
+Fluye es un sistema de gestión de turnos para centros de atención al público. Ajusta la capacidad a los módulos que realmente están atendiendo, aprende los tiempos de atención reales y reparte las pausas del personal sin dejar la fila desatendida.
 
-1. **La fila se desborda a la hora del almuerzo.** Fluye calcula la capacidad real con los módulos que están atendiendo de verdad. Cuando alguien sale a almorzar, la espera que ven el kiosco, la pantalla y el celular sube en el acto.
-2. **El equipo no alcanza a descansar.** El sistema recomienda pausas y las reparte con justicia: primero quien lleva más tiempo sin parar, y nunca más de N personas fuera a la vez.
-3. **Los tiempos se adivinan.** No hay números fijos. Cada atención se cronometra desde que se toma el turno, y el sistema aprende cuánto dura cada servicio, separando a preferenciales y generales.
+[![Ver el video demostrativo (3 min)](docs/portada_video.jpg)](docs/Fluye_video.mp4)
+
+▶️ **[Ver el video demostrativo (3 min)](docs/Fluye_video.mp4)**: el problema, la solución funcionando y los resultados.
+
+> **Proyecto personal.** No lo implementé en la entidad donde trabajé ni lo encargó esa organización. Lo diseñé y desarrollé después, por mi cuenta, a partir de lo que observé trabajando en un centro de atención al ciudadano: cómo llegaba la gente al kiosco, cuánto esperaba y cómo se congestionaba todo a la hora del almuerzo.
+
+## El problema
+
+Las cifras son una estimación propia a partir de la observación diaria, no datos oficiales.
+
+| Lo que pasaba | Consecuencia |
+|---|---|
+| Se entregaba un **cupo fijo de 20 turnos cada media hora** (≈40 por hora) | 4 módulos a ~8 min por persona solo atienden **≈30 por hora**: sobraban unas **10 personas cada hora** |
+| La sobreventa se acumulaba toda la mañana | Hacia el mediodía había **más de 40 personas en espera** |
+| No había pausas planificadas | El equipo atendía sin parar; a veces **sin tiempo ni para desayunar** |
+| La espera anunciada ignoraba pausas y módulos cerrados | La gente recibía tiempos que no se cumplían |
+| Las atenciones preferenciales tardan más | El sistema las trataba igual que las demás |
+
+**Causa raíz:** todo dependía de **números fijos**: el cupo, el tiempo por persona y las pausas.
+
+## La solución
+
+1. **Capacidad real, en vivo.** La espera se calcula con los módulos que están atendiendo de verdad. Cuando alguien sale a almorzar, la espera que ven el kiosco, la pantalla y el celular sube en el acto.
+2. **Pausas justas y con cobertura.** El sistema recomienda desayuno, almuerzo y pausas activas, y las reparte con justicia: primero quien lleva más tiempo sin parar, y nunca más de N personas fuera a la vez.
+3. **Tiempos aprendidos, no adivinados.** Cada atención se cronometra desde que se toma el turno, y el sistema aprende cuánto dura cada servicio, separando a preferenciales y generales.
 
 ![Módulo de atención](docs/modulo.png)
+
+| Panel del gestor | Pantalla de sala | Boleto del kiosco |
+|---|---|---|
+| ![Panel](docs/panel.png) | ![Pantalla](docs/pantalla.png) | ![Kiosco](docs/kiosco.png) |
+
+## Resultados (pruebas y simulación)
+
+- **30 pruebas automáticas** aprobadas: lógica, API y concurrencia, incluida la de dos módulos tomando el mismo turno.
+- **Simulación de 20 días hábiles** con unos **3.700 turnos** y pico al mediodía.
+- Cuando un módulo sale a almorzar, la espera estimada **se recalcula al instante** en todas las pantallas; en el video pasa de 9 a 13 minutos.
+- El sistema **aprendió solo** que una atención preferencial tarda **entre 1,5 y 1,7 veces más** que una general.
+- **Proyección:** entregar turnos según la capacidad real, unos 30 por hora en lugar de 40, eliminaría la sobreventa de unos 10 turnos por hora que generaba el atraso del mediodía.
+
+*Aún no se ha implementado en un centro real. El siguiente paso es una prueba piloto para medir el impacto.*
+
+## English summary
+
+**Fluye** is a real-time queue management system for public service centers. It is a personal project, built after observing daily customer flow in a citizen service center, where a fixed ticket quota (~40/hour) exceeded real capacity (~30/hour) and created 40+ people of backlog by noon, while staff had no planned breaks.
+
+Fluye adjusts capacity to the counters that are actually serving, learns real service times per service and priority, recommends fair staggered breaks and forecasts staffing needs per hour with Erlang C. It includes a touch kiosk, live mobile tracking via QR, an agent console with automatic assignment, a lobby display with voice calls and a manager dashboard.
+
+**Stack:** Python, FastAPI, WebSocket, SQLite, vanilla JavaScript, pytest, Playwright, Docker. Validated with 30 automated tests and a 20-business-day simulation (~3,700 tickets).
+
+## Autora
+
+**María Alejandra** · [GitHub](https://github.com/malejandra7) · [LinkedIn](https://www.linkedin.com/in/maria-alejandra-a-a658aa260/)
+
+Análisis del problema, investigación, diseño de la solución y desarrollo.
 
 ## Qué incluye
 
