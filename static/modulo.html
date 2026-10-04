@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Módulo · Fluye</title>
+<link rel="icon" href="/static/icono.svg">
+<link rel="stylesheet" href="/static/estilos.css">
+<style>
+  .entrada { max-width: 440px; margin: 8vh auto; display: grid; gap: 16px; }
+  .servicios-check { display: grid; gap: 8px; }
+  .servicios-check label { display: flex; gap: 10px; align-items: center; font-weight: 500; }
+  .servicios-check input { width: 20px; min-height: 20px; }
+
+  .rejilla { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 920px) { .rejilla { grid-template-columns: 1fr; } }
+
+  .cabeza { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .cabeza h1 { font-size: 1.6rem; }
+
+  .actual { display: grid; gap: 18px; }
+  .codigo { font: 700 clamp(3rem, 8vw, 5rem)/1 var(--serif); letter-spacing: -0.02em; }
+  .cronometro { font: 600 2.4rem/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .progreso { height: 6px; background: var(--papel-2); border-radius: 3px; overflow: hidden; }
+  .progreso div { height: 100%; background: var(--ok); width: 0; transition: width .5s, background .3s; }
+  .progreso.pasado div { background: var(--acento); }
+  .datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px 20px; }
+  .datos > div { display: grid; gap: 2px; }
+  .acciones { display: flex; gap: 10px; flex-wrap: wrap; }
+  .acciones .primario { flex: 1 1 200px; min-height: 56px; font-size: 1.05rem; }
+
+  .vacio { text-align: center; padding: 36px 20px; display: grid; gap: 14px; justify-items: center; }
+  .grande { min-height: 64px; font-size: 1.15rem; padding: 14px 32px; }
+
+  .interruptor { display: flex; align-items: center; gap: 12px; cursor: pointer; text-align: left; }
+  .interruptor input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .interruptor .riel { width: 46px; height: 26px; border-radius: 13px; background: var(--linea); position: relative; flex: none; transition: background .2s; }
+  .interruptor .riel::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--tarjeta); transition: transform .2s; }
+  .interruptor input:checked + .riel { background: var(--ok); }
+  .interruptor input:checked + .riel::after { transform: translateX(20px); }
+  .interruptor input:focus-visible + .riel { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+  .pausas { display: flex; gap: 8px; flex-wrap: wrap; }
+  .en-pausa { text-align: center; padding: 40px 20px; display: grid; gap: 12px; justify-items: center; }
+
+  .fila-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--linea); border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; }
+  .fila-lista li { background: var(--tarjeta); display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; align-items: center; }
+  .fila-lista li.no-apto { opacity: .5; }
+  .fila-lista li.sugerido { box-shadow: inset 3px 0 0 var(--acento); }
+  .fila-lista .cod { font: 700 1.2rem var(--serif); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .fila-lista .meta { font-size: .85rem; color: var(--tinta-2); }
+  .fila-lista .espera { font: .85rem var(--mono); }
+  .fila-lista .espera.larga { color: var(--acento); font-weight: 700; }
+
+  .cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+  .cifra { display: grid; gap: 2px; }
+  .cifra b { font: 600 1.6rem/1.1 var(--serif); }
+  .columna { display: grid; gap: 16px; }
+</style>
+</head>
+<body>
+<header class="barra">
+  <a class="marca" href="/">Fluye<b>.</b> <span class="etiqueta">Módulo</span></a>
+  <div style="display:flex;gap:14px;align-items:center">
+    <span class="conexion" id="conexion">Conectando…</span>
+    <button class="fantasma chico oculto" id="btn-salir">Cerrar módulo</button>
+  </div>
+</header>
+
+<!-- Entrada -->
+<main class="contenedor oculto" id="vista-entrada">
+  <form class="tarjeta entrada" id="form-entrada">
+    <div>
+      <p class="etiqueta">Abrir módulo</p>
+      <h1>Hola, ¿quién atiende hoy?</h1>
+    </div>
+    <label>Tu nombre <input name="nombre" autocomplete="name" required></label>
+    <label>Número de módulo <input name="modulo" inputmode="numeric" required></label>
+    <fieldset style="border:0;padding:0;margin:0" class="servicios-check" id="servicios-entrada">
+      <legend class="etiqueta" style="margin-bottom:8px">Servicios que atiendes (vacío = todos)</legend>
+    </fieldset>
+    <button class="primario grande" type="submit">Empezar a atender</button>
+  </form>
+</main>
+
+<!-- Trabajo -->
+<main class="contenedor oculto" id="vista-trabajo">
+  <div class="rejilla">
+    <section class="columna">
+      <div class="cabeza">
+        <h1 id="titulo"></h1>
+        <span class="pastilla" id="estado"></span>
+        <span class="muy-tenue mono" id="jornada"></span>
+      </div>
+
+      <div id="recomendacion" class="aviso oculto" role="status">
+        <p id="recomendacion-texto"></p>
+        <div style="margin-top:10px" class="acciones">
+          <button class="chico primario" id="recomendacion-btn"></button>
+        </div>
+      </div>
+
+      <!-- Atendiendo -->
+      <article class="tarjeta actual oculto" id="caja-actual" aria-live="polite">
+        <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:end">
+          <div>
+            <p class="etiqueta">Atendiendo</p>
+            <div class="codigo" id="act-codigo"></div>
+          </div>
+          <div style="text-align:right">
+            <p class="etiqueta">Tiempo de atención</p>
+            <div class="cronometro" id="act-crono">0:00</div>
+            <p class="muy-tenue mono" style="font-size:.8rem" id="act-esperado"></p>
+          </div>
+        </div>
+        <div class="progreso" id="act-progreso"><div></div></div>
+        <div class="datos">
+          <div><span class="etiqueta">Cédula</span><span class="mono" id="act-cedula"></span></div>
+          <div><span class="etiqueta">Servicio</span><span id="act-servicio"></span></div>
+          <div><span class="etiqueta">Esperó</span><span id="act-espero"></span></div>
+          <div id="act-pref-caja"><span class="etiqueta">Prioridad</span><span id="act-pref"></span></div>
+        </div>
+        <div class="acciones">
+          <button class="primario" id="btn-finalizar">Finalizar atención</button>
+          <button id="btn-rellamar">Volver a llamar</button>
+          <button class="fantasma" id="btn-ausente">No se presentó</button>
+        </div>
+        <details>
+          <summary class="tenue" style="cursor:pointer">Devolver o transferir</summary>
+          <div class="acciones" style="margin-top:10px">
+            <select id="sel-transferir" style="flex:1 1 200px"></select>
+            <button class="fantasma" id="btn-devolver">Devolver a la fila</button>
+          </div>
+        </details>
+      </article>
+
+      <!-- Libre -->
+      <article class="tarjeta vacio oculto" id="caja-libre">
+        <p class="etiqueta">Módulo libre</p>
+        <h2 id="libre-titulo">Listo para el siguiente</h2>
+        <p class="tenue" id="libre-sub"></p>
+        <button class="primario grande" id="btn-siguiente">Llamar siguiente</button>
+        <label class="interruptor">
+          <input type="checkbox" id="chk-auto">
+          <span class="riel"></span>
+          <span><b>Asignación automática</b><br><span class="tenue" style="font-size:.88rem">Al terminar, el sistema te pasa el siguiente turno sin que toques nada.</span></span>
+        </label>
+      </article>
+
+      <!-- Pausa -->
+      <article class="tarjeta en-pausa oculto" id="caja-pausa">
+        <p class="etiqueta" id="pausa-tipo"></p>
+        <div class="cronometro" id="pausa-crono" style="font-size:3.4rem">0:00</div>
+        <p class="tenue" id="pausa-sub"></p>
+        <button class="primario grande" id="btn-volver">Volver a atender</button>
+      </article>
+
+      <div class="tarjeta" style="display:grid;gap:10px">
+        <p class="etiqueta">Pausas</p>
+        <div class="pausas" id="pausas"></div>
+        <p class="muy-tenue" style="font-size:.85rem">Al salir, tus compañeros ven que la capacidad bajó y las esperas se recalculan solas. No se muestra quién salió.</p>
+      </div>
+
+      <div class="tarjeta cifras">
+        <div class="cifra"><span class="etiqueta">Módulos atendiendo</span><b id="n-equipo"></b></div>
+        <div class="cifra"><span class="etiqueta">Espera para quien llega</span><b id="n-espera"></b></div>
+        <div class="cifra"><span class="etiqueta">Atendí hoy</span><b id="n-atendidos"></b></div>
+        <div class="cifra"><span class="etiqueta">Mi promedio</span><b id="n-promedio"></b></div>
+      </div>
+    </section>
+
+    <aside class="columna">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <h2>Fila en vivo</h2>
+        <span class="etiqueta" id="n-fila"></span>
+      </div>
+      <p class="muy-tenue" style="font-size:.85rem;margin-top:-8px">Ordenada por espera y prioridad. Puedes tomar cualquiera; la marca roja es la sugerida.</p>
+      <ul class="fila-lista" id="fila"></ul>
+      <p class="tenue oculto" id="fila-vacia" style="text-align:center;padding:24px">No hay nadie esperando.</p>
+    </aside>
+  </div>
+</main>
+
+<script type="module">
+import { api, conectar, enCola, avisar, segundosDesde, reloj, duracion, esc, campana, NOMBRE_PAUSA, NOMBRE_ESTADO } from "/static/comun.js";
+
+const $ = (id) => document.getElementById(id);
+let agenteId = Number(localStorage.getItem("fluye.agente")) || null;
+let estado = null;
+let ultimoTurno = null;
+
+async function cargarServicios() {
+  const servicios = await api("/api/servicios");
+  const guardados = JSON.parse(localStorage.getItem("fluye.servicios") || "[]");
+  $("servicios-entrada").insertAdjacentHTML("beforeend", servicios.map((s) =>
+    `<label><input type="checkbox" value="${s.id}" ${guardados.includes(s.id) ? "checked" : ""}> ${esc(s.nombre)}</label>`).join(""));
+  const f = $("form-entrada");
+  f.nombre.value = localStorage.getItem("fluye.nombre") || "";
+  f.modulo.value = localStorage.getItem("fluye.modulo") || "";
+}
+
+$("form-entrada").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const servicios = [...f.querySelectorAll("input[type=checkbox]:checked")].map((c) => Number(c.value));
+  try {
+    const r = await api("/api/agentes/entrar", { metodo: "POST", datos: { nombre: f.nombre.value, modulo: f.modulo.value, servicios } });
+    agenteId = r.id;
+    localStorage.setItem("fluye.agente", agenteId);
+    localStorage.setItem("fluye.nombre", f.nombre.value);
+    localStorage.setItem("fluye.modulo", f.modulo.value);
+    localStorage.setItem("fluye.servicios", JSON.stringify(servicios));
+    mostrar();
+    refrescar();
+  } catch (err) { avisar(err.message, true); }
+});
+
+function mostrar() {
+  $("vista-entrada").classList.toggle("oculto", !!agenteId);
+  $("vista-trabajo").classList.toggle("oculto", !agenteId);
+  $("btn-salir").classList.toggle("oculto", !agenteId);
+}
+
+async function accion(ruta, datos = {}, exito) {
+  try {
+    await api(`/api/agentes/${agenteId}/${ruta}`, { metodo: "POST", datos });
+    if (exito) avisar(exito);
+    refrescar();
+  } catch (err) { avisar(err.message, true); refrescar(); }
+}
+
+async function refrescar() {
+  if (!agenteId) return;
+  try {
+    estado = await api(`/api/agentes/${agenteId}`);
+  } catch (err) {
+    if (err.estado === 409) { agenteId = null; localStorage.removeItem("fluye.agente"); mostrar(); }
+    return;
+  }
+  if (estado.agente.estado === "desconectado") {
+    agenteId = null; localStorage.removeItem("fluye.agente"); mostrar(); return;
+  }
+  pintar();
+}
+
+function pintar() {
+  const { agente, actual, fila, equipo, recomendacion, mis_numeros } = estado;
+  $("titulo").textContent = `Módulo ${agente.modulo} · ${agente.nombre}`;
+  const pill = $("estado");
+  pill.className = `pastilla ${agente.estado}`;
+  pill.textContent = agente.estado === "pausa" ? NOMBRE_PAUSA[agente.pausa_tipo] : NOMBRE_ESTADO[agente.estado];
+
+  // Llegó un turno nuevo (por ejemplo, por asignación automática): avisar.
+  if (actual && actual.id !== ultimoTurno && ultimoTurno !== undefined) campana([523, 784]);
+  ultimoTurno = actual ? actual.id : null;
+
+  $("caja-actual").classList.toggle("oculto", !actual);
+  $("caja-libre").classList.toggle("oculto", !!actual || agente.estado === "pausa");
+  $("caja-pausa").classList.toggle("oculto", agente.estado !== "pausa");
+
+  if (actual) {
+    $("act-codigo").textContent = actual.codigo;
+    $("act-cedula").textContent = actual.cedula + (actual.nombre ? ` · ${actual.nombre}` : "");
+    $("act-servicio").textContent = actual.servicio;
+    $("act-espero").textContent = duracion(actual.espero_min);
+    $("act-pref-caja").classList.toggle("oculto", actual.prioridad !== "preferencial");
+    $("act-pref").innerHTML = `<span class="pastilla pref">Preferencial${actual.motivo ? " · " + esc(actual.motivo) : ""}</span>`;
+    $("act-esperado").textContent = `habitual: ${duracion(actual.esperado_min)}`;
+    $("btn-rellamar").textContent = `Volver a llamar (${actual.llamadas}/${estado.max_llamadas})`;
+    $("btn-rellamar").disabled = actual.llamadas >= estado.max_llamadas;
+    $("sel-transferir").innerHTML = `<option value="">Mismo servicio</option>` + estado.servicios
+      .map((s) => `<option value="${s.id}">Transferir a: ${esc(s.nombre)}</option>`).join("");
+  }
+
+  const aptos = fila.filter((t) => t.apto).length;
+  $("btn-siguiente").disabled = aptos === 0;
+  $("libre-titulo").textContent = aptos ? "Listo para el siguiente" : "Sin personas esperando";
+  $("libre-sub").textContent = aptos
+    ? `${aptos} ${aptos === 1 ? "persona espera" : "personas esperan"} en tus servicios.`
+    : "Cuando llegue alguien, aparecerá aquí al instante.";
+  $("chk-auto").checked = agente.modo_auto;
+
+  $("pausa-tipo").textContent = NOMBRE_PAUSA[agente.pausa_tipo] || "Pausa";
+  const prevista = estado.pausa_minutos[agente.pausa_tipo];
+  $("pausa-sub").textContent = prevista ? `Prevista: ${duracion(prevista)}. Disfrútala, la fila sigue en manos del equipo.` : "";
+
+  $("pausas").innerHTML = Object.entries(NOMBRE_PAUSA).map(([tipo, nombre]) => {
+    const hecha = agente.pausas_hoy.includes(tipo) && tipo !== "activa";
+    return `<button class="fantasma chico" data-pausa="${tipo}" ${actual || agente.estado === "pausa" ? "disabled" : ""}>
+      ${nombre}${hecha ? " ✓" : ""} <span class="muy-tenue mono">${estado.pausa_minutos[tipo]}′</span></button>`;
+  }).join("");
+
+  const rec = $("recomendacion");
+  rec.classList.toggle("oculto", !recomendacion || agente.estado === "pausa");
+  if (recomendacion) {
+    rec.className = `aviso ${recomendacion.nivel === "sugerida" ? "" : recomendacion.nivel}` + (agente.estado === "pausa" ? " oculto" : "");
+    $("recomendacion-texto").textContent = recomendacion.mensaje;
+    const btn = $("recomendacion-btn");
+    btn.classList.toggle("oculto", recomendacion.nivel === "info");
+    btn.textContent = actual ? `Tomar ${NOMBRE_PAUSA[recomendacion.tipo].toLowerCase()} al terminar` : `Tomar ${NOMBRE_PAUSA[recomendacion.tipo].toLowerCase()} ahora`;
+    btn.disabled = !!actual;
+    btn.dataset.pausa = recomendacion.tipo;
+  }
+
+  $("n-equipo").textContent = `${equipo.activos} de ${equipo.conectados}`;
+  $("n-espera").textContent = estado.espera_nuevo_min === null ? "—" : duracion(estado.espera_nuevo_min);
+  $("n-atendidos").textContent = mis_numeros.atendidos;
+  $("n-promedio").textContent = duracion(mis_numeros.promedio_min);
+  $("n-fila").textContent = `${fila.length} en espera`;
+
+  $("fila-vacia").classList.toggle("oculto", fila.length > 0);
+  $("fila").innerHTML = fila.map((t) => `
+    <li class="${t.apto ? "" : "no-apto"} ${t.sugerido ? "sugerido" : ""}">
+      <div>
+        <div class="cod">${esc(t.codigo)}
+          ${t.prioridad === "preferencial" ? `<span class="pastilla pref">${esc(t.motivo || "Preferencial")}</span>` : ""}
+          ${t.sugerido ? `<span class="etiqueta" style="color:var(--acento)">Sugerido</span>` : ""}</div>
+        <div class="meta">${esc(t.servicio)} · ~${duracion(t.esperado_min)} de atención</div>
+      </div>
+      <div style="display:grid;gap:6px;justify-items:end">
+        <span class="espera" data-desde="${t.creado_en}">—</span>
+        <button class="chico" data-tomar="${t.id}" ${!t.apto || actual || agente.estado === "pausa" ? "disabled" : ""}>Tomar</button>
+      </div>
+    </li>`).join("");
+  latido();
+}
+
+// Relojes locales: corren cada segundo sin pedir nada al servidor.
+function latido() {
+  if (!estado) return;
+  const { agente, actual } = estado;
+  $("jornada").textContent = agente.estado === "pausa" ? "" : `sin pausa hace ${reloj(segundosDesde(agente.trabajando_desde))}`;
+  if (actual) {
+    const s = segundosDesde(actual.inicio_en);
+    $("act-crono").textContent = reloj(s);
+    const pct = Math.min(100, (s / 60 / actual.esperado_min) * 100);
+    $("act-progreso").firstElementChild.style.width = pct + "%";
+    $("act-progreso").classList.toggle("pasado", s / 60 > actual.esperado_min);
+  }
+  if (agente.estado === "pausa") $("pausa-crono").textContent = reloj(segundosDesde(agente.estado_desde));
+  document.querySelectorAll("[data-desde]").forEach((el) => {
+    const min = segundosDesde(el.dataset.desde) / 60;
+    el.textContent = `espera ${reloj(min * 60)}`;
+    el.classList.toggle("larga", min >= 15);
+  });
+}
+setInterval(latido, 1000);
+setInterval(refrescar, 30000);
+
+document.addEventListener("click", (e) => {
+  const tomar = e.target.closest("[data-tomar]");
+  if (tomar) return accion("tomar", { ticket_id: Number(tomar.dataset.tomar) });
+  const pausa = e.target.closest("[data-pausa]");
+  if (pausa) return accion("pausa", { tipo: pausa.dataset.pausa }, `Buen ${NOMBRE_PAUSA[pausa.dataset.pausa].toLowerCase()}. La capacidad se ajustó.`);
+});
+$("btn-siguiente").onclick = () => accion("tomar", {});
+$("btn-finalizar").onclick = () => accion("finalizar");
+$("btn-rellamar").onclick = () => accion("rellamar");
+$("btn-ausente").onclick = () => confirm("¿Marcar este turno como «No se presentó»?") && accion("ausente");
+$("btn-devolver").onclick = () => {
+  const s = $("sel-transferir").value;
+  accion("devolver", { servicio_id: s ? Number(s) : null }, s ? "Turno transferido" : "Turno devuelto a la fila");
+};
+$("btn-volver").onclick = () => accion("volver", {}, "¡Bienvenido de vuelta!");
+$("chk-auto").onchange = (e) => accion("auto", { activo: e.target.checked },
+  e.target.checked ? "Asignación automática activada" : "Asignación automática desactivada");
+$("btn-salir").onclick = async () => {
+  try {
+    await api(`/api/agentes/${agenteId}/salir`, { metodo: "POST" });
+    agenteId = null; localStorage.removeItem("fluye.agente"); mostrar();
+  } catch (err) { avisar(err.message, true); }
+};
+
+ultimoTurno = undefined;
+await cargarServicios();
+mostrar();
+const pedir = enCola(refrescar);
+conectar((m) => { if (m.t === "cambio") pedir(); }, $("conexion"));
+</script>
+</body>
+</html>

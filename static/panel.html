@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel · Fluye</title>
+<link rel="icon" href="/static/icono.svg">
+<link rel="stylesheet" href="/static/estilos.css">
+<style>
+  .seccion { display: grid; gap: 14px; margin-bottom: 28px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--linea); border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; }
+  .kpi { background: var(--tarjeta); padding: 16px 18px; display: grid; gap: 4px; }
+  .kpi b { font: 600 2rem/1.1 var(--serif); }
+  .kpi small { color: var(--tinta-3); font-size: .8rem; }
+  .dos { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 960px) { .dos { grid-template-columns: 1fr; } }
+  .tabla-caja { overflow-x: auto; border: 1px solid var(--linea); border-radius: var(--radio); background: var(--tarjeta); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th { font: 600 .7rem var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--tinta-3); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .grafico { position: relative; }
+  .grafico svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grafico .eje { font: 11px var(--mono); fill: var(--tinta-3); }
+  .grafico .rejilla-l { stroke: var(--linea); stroke-width: 1; }
+  .leyenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; color: var(--tinta-2); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .leyenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .leyenda i.linea { height: 0; border-top: 2px dashed var(--tinta-2); border-radius: 0; }
+  .globo { position: absolute; pointer-events: none; background: var(--tinta); color: var(--papel); font-size: .82rem; padding: 8px 10px; border-radius: 4px; white-space: nowrap; transform: translate(-50%, -110%); }
+  .ajustes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .ajustes label span { font-size: .85rem; color: var(--tinta-2); }
+  .rec { font-size: .82rem; margin-top: 4px; }
+  .rec.urgente { color: var(--acento); font-weight: 600; }
+  .rec.sugerida { color: var(--aviso); }
+  .rec.info { color: var(--tinta-3); }
+</style>
+</head>
+<body>
+<header class="barra">
+  <a class="marca" href="/">Fluye<b>.</b> <span class="etiqueta">Panel del gestor</span></a>
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <span class="conexion" id="conexion">Conectando…</span>
+    <a class="boton chico fantasma" id="csv" href="/api/historial.csv">Descargar histórico (CSV)</a>
+  </div>
+</header>
+
+<main class="contenedor">
+  <section class="seccion">
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section class="seccion">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <h2>Equipo en vivo</h2>
+      <span class="tenue" id="capacidad"></span>
+    </div>
+    <div class="tabla-caja"><table id="agentes"></table></div>
+  </section>
+
+  <div class="dos">
+    <section class="seccion">
+      <h2>Hoy, hora por hora</h2>
+      <div class="leyenda">
+        <span><i style="background:var(--serie-1)"></i>Llegadas</span>
+        <span><i style="background:var(--serie-2)"></i>Atendidos</span>
+        <span><i class="linea"></i>Pronóstico de llegadas</span>
+      </div>
+      <div class="tarjeta grafico" id="grafico"></div>
+      <details>
+        <summary class="tenue" style="cursor:pointer">Ver como tabla · módulos recomendados por hora</summary>
+        <div class="tabla-caja" style="margin-top:10px"><table id="horas"></table></div>
+      </details>
+      <p class="muy-tenue" style="font-size:.85rem">Los módulos recomendados salen de la fórmula Erlang C, con tus llegadas históricas, tu tiempo de atención real y la meta de espera de los ajustes.</p>
+    </section>
+
+    <section class="seccion">
+      <h2>Lo que el sistema aprendió</h2>
+      <div class="tarjeta" id="tiempos" style="display:grid;gap:12px"></div>
+      <h2>Fila ahora</h2>
+      <div class="tabla-caja"><table id="fila"></table></div>
+    </section>
+  </div>
+
+  <section class="seccion">
+    <h2>Ajustes</h2>
+    <p class="tenue" style="margin-top:-8px">Todo es editable. Los tiempos son solo el punto de partida: con cada atención, el sistema aprende los reales.</p>
+    <form class="tarjeta ajustes" id="ajustes"></form>
+  </section>
+
+  <section class="seccion">
+    <h2>Servicios</h2>
+    <div class="tabla-caja"><table id="servicios"></table></div>
+    <form class="tarjeta" id="nuevo-servicio" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+      <label style="flex:2 1 200px">Nombre <input name="nombre" required></label>
+      <label style="flex:1 1 80px">Prefijo <input name="prefijo" maxlength="2" required></label>
+      <button class="primario">Agregar servicio</button>
+    </form>
+  </section>
+</main>
+
+<script type="module">
+import { api, conectar, enCola, avisar, segundosDesde, reloj, duracion, horaCorta, esc, NOMBRE_PAUSA, NOMBRE_ESTADO } from "/static/comun.js";
+
+const $ = (id) => document.getElementById(id);
+let pin = sessionStorage.getItem("fluye.pin") || null;
+let datos = null;
+
+async function pedirPanel() {
+  try {
+    datos = await api("/api/panel", { pin });
+  } catch (err) {
+    if (err.estado === 401) {
+      pin = prompt("PIN del gestor");
+      if (pin) { sessionStorage.setItem("fluye.pin", pin); return pedirPanel(); }
+    }
+    return avisar(err.message, true);
+  }
+  pintar();
+}
+
+const AJUSTES = [
+  ["minutos_atencion_inicial", "Minutos de atención para arrancar", "number"],
+  ["factor_preferencial_inicial", "Factor inicial de preferenciales (×)", "number"],
+  ["bono_preferencial_min", "Ventaja de un preferencial (min de espera)", "number"],
+  ["max_en_pausa", "Máximo de personas en pausa a la vez", "number"],
+  ["descanso_sugerido_min", "Sugerir pausa activa tras (min)", "number"],
+  ["descanso_urgente_min", "Pausa urgente tras (min)", "number"],
+  ["pausa_minutos.desayuno", "Duración desayuno (min)", "number"],
+  ["pausa_minutos.almuerzo", "Duración almuerzo (min)", "number"],
+  ["pausa_minutos.activa", "Duración pausa activa (min)", "number"],
+  ["ventana_desayuno.0", "Desayuno desde", "time"],
+  ["ventana_desayuno.1", "Desayuno hasta", "time"],
+  ["ventana_almuerzo.0", "Almuerzo desde", "time"],
+  ["ventana_almuerzo.1", "Almuerzo hasta", "time"],
+  ["hora_apertura", "Apertura", "time"],
+  ["hora_cierre", "Cierre", "time"],
+  ["max_llamadas", "Llamadas antes de «no se presentó»", "number"],
+  ["meta_espera_min", "Meta: atender antes de (min)", "number"],
+  ["meta_nivel_servicio", "Meta: % de personas (0 a 1)", "number"],
+  ["modo_demo", "Modo demostración (ignora horario)", "checkbox"],
+];
+
+function leer(obj, ruta) { return ruta.split(".").reduce((o, k) => o?.[k], obj); }
+
+function pintarAjustes() {
+  const f = $("ajustes");
+  if (f.dataset.listo) return;  // no pisar lo que el gestor está escribiendo
+  f.dataset.listo = "1";
+  f.innerHTML = AJUSTES.map(([clave, texto, tipo]) => {
+    const v = leer(datos.ajustes, clave);
+    return tipo === "checkbox"
+      ? `<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="${clave}" ${v ? "checked" : ""} style="width:20px;min-height:20px"> <span>${texto}</span></label>`
+      : `<label><span>${texto}</span><input type="${tipo}" step="any" name="${clave}" value="${esc(v)}"></label>`;
+  }).join("") + `<div style="display:flex;align-items:end"><button class="primario" style="width:100%">Guardar ajustes</button></div>`;
+}
+
+$("ajustes").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const cambios = structuredClone(datos.ajustes);
+  for (const [clave, , tipo] of AJUSTES) {
+    const campo = e.target.elements[clave];
+    const valor = tipo === "checkbox" ? campo.checked : tipo === "number" ? Number(campo.value) : campo.value;
+    const partes = clave.split(".");
+    let destino = cambios;
+    partes.slice(0, -1).forEach((p) => (destino = destino[p]));
+    destino[partes.at(-1)] = valor;
+  }
+  try {
+    await api("/api/ajustes", { metodo: "PUT", datos: cambios, pin });
+    avisar("Ajustes guardados. Las esperas ya se recalcularon.");
+  } catch (err) { avisar(err.message, true); }
+});
+
+$("nuevo-servicio").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/servicios", { metodo: "POST", datos: { nombre: e.target.nombre.value, prefijo: e.target.prefijo.value }, pin });
+    e.target.reset();
+    avisar("Servicio agregado");
+  } catch (err) { avisar(err.message, true); }
+});
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-servicio-activo]");
+  if (!b) return;
+  const s = datos.servicios.find((x) => x.id === Number(b.dataset.servicioActivo));
+  try { await api("/api/servicios", { metodo: "POST", datos: { ...s, activo: !s.activo }, pin }); }
+  catch (err) { avisar(err.message, true); }
+});
+
+function kpi(etiqueta, valor, nota = "") {
+  return `<div class="kpi"><span class="etiqueta">${etiqueta}</span><b>${valor}</b><small>${nota}</small></div>`;
+}
+
+function pintar() {
+  const { kpis, capacidad, agentes, tiempos, por_hora, fila, servicios, ajustes } = datos;
+  $("kpis").innerHTML = [
+    kpi("En espera", kpis.en_espera, `quien llega ahora: ${duracion(kpis.espera_nuevo_min)}`),
+    kpi("Atendidos hoy", kpis.atendidos, `${kpis.ausentes} no se presentaron`),
+    kpi("Espera promedio", duracion(kpis.espera_promedio_min), `máxima: ${duracion(kpis.espera_max_min)}`),
+    kpi("Atención promedio", duracion(kpis.atencion_promedio_min), `${tiempos.muestras} atenciones hoy`),
+    kpi(`Atendidos antes de ${ajustes.meta_espera_min} min`, kpis.dentro_meta_pct === null ? "—" : kpis.dentro_meta_pct + "%",
+        `meta: ${Math.round(ajustes.meta_nivel_servicio * 100)}%`),
+    kpi("Capacidad", `${capacidad.activos}/${capacidad.conectados}`, `≈ ${capacidad.personas_hora} personas/hora`),
+  ].join("");
+
+  $("capacidad").textContent = `${capacidad.activos} atendiendo · ${capacidad.en_pausa} en pausa · ${capacidad.personas_hora} personas/hora`;
+  $("agentes").innerHTML = `<thead><tr><th>Módulo</th><th>Persona</th><th>Estado</th><th class="num">Hace</th><th class="num">Sin pausa</th><th class="num">Atendidos</th><th class="num">Promedio</th><th>Modo</th></tr></thead><tbody>` +
+    (agentes.length ? agentes.map((a) => `<tr>
+      <td class="mono">${esc(a.modulo)}</td>
+      <td>${esc(a.nombre)}${a.recomendacion ? `<div class="rec ${a.recomendacion.nivel}">${esc(a.recomendacion.mensaje)}</div>` : ""}</td>
+      <td><span class="pastilla ${a.estado}">${a.estado === "pausa" ? NOMBRE_PAUSA[a.pausa_tipo] : NOMBRE_ESTADO[a.estado]}${a.turno ? " · " + esc(a.turno) : ""}</span></td>
+      <td class="num" data-desde="${a.estado_desde}"></td>
+      <td class="num" ${a.estado !== "desconectado" && a.estado !== "pausa" ? `data-desde="${a.trabajando_desde}"` : ""}>—</td>
+      <td class="num">${a.atendidos}</td>
+      <td class="num">${duracion(a.promedio_min)}</td>
+      <td>${a.modo_auto ? "Automático" : "Manual"}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="tenue">Nadie ha abierto un módulo todavía.</td></tr>`) + "</tbody>";
+
+  $("tiempos").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><span class="etiqueta">Atención general</span><b style="display:block;font:600 1.6rem var(--serif)">${duracion(tiempos.general_min)}</b></div>
+      <div><span class="etiqueta">Preferencial</span><b style="display:block;font:600 1.6rem var(--serif)">${duracion(tiempos.preferencial_min)}</b>
+      <small class="muy-tenue">${tiempos.factor_preferencial}× la general</small></div>
+    </div>
+    ${tiempos.por_servicio.length ? `<table><thead><tr><th>Servicio</th><th>Prioridad</th><th class="num">Tiempo</th></tr></thead><tbody>${
+      tiempos.por_servicio.map((s) => `<tr><td>${esc(s.servicio)}</td><td>${s.prioridad}</td><td class="num">${duracion(s.minutos)}</td></tr>`).join("")}</tbody></table>`
+      : `<p class="tenue">Aún no hay atenciones terminadas: se usan los valores iniciales.</p>`}`;
+
+  $("fila").innerHTML = `<thead><tr><th>Turno</th><th>Servicio</th><th class="num">Espera</th><th class="num">Lo llaman en</th></tr></thead><tbody>` +
+    (fila.length ? fila.map((t) => `<tr><td><b>${esc(t.codigo)}</b>${t.prioridad === "preferencial" ? ` <span class="pastilla pref">${esc(t.motivo || "Pref.")}</span>` : ""}</td>
+      <td>${esc(t.servicio)}</td><td class="num" data-desde="${t.creado_en}"></td><td class="num">${duracion(t.espera_min)}</td></tr>`).join("")
+      : `<tr><td colspan="4" class="tenue">Nadie esperando.</td></tr>`) + "</tbody>";
+
+  $("horas").innerHTML = `<thead><tr><th>Hora</th><th class="num">Llegadas</th><th class="num">Atendidos</th><th class="num">Espera prom.</th><th class="num">Pronóstico</th><th class="num">Módulos recomendados</th></tr></thead><tbody>` +
+    por_hora.map((h) => `<tr><td class="mono">${String(h.hora).padStart(2, "0")}:00</td><td class="num">${h.llegadas}</td><td class="num">${h.atendidos}</td>
+      <td class="num">${duracion(h.espera_promedio_min)}</td><td class="num">${h.pronostico}</td><td class="num">${h.modulos_recomendados ?? "—"}</td></tr>`).join("") + "</tbody>";
+
+  $("servicios").innerHTML = `<thead><tr><th>Prefijo</th><th>Servicio</th><th>Estado</th><th></th></tr></thead><tbody>` +
+    servicios.map((s) => `<tr><td class="mono">${esc(s.prefijo)} / P${esc(s.prefijo)}</td><td>${esc(s.nombre)}</td>
+      <td>${s.activo ? "Activo" : "Inactivo"}</td><td><button class="chico fantasma" data-servicio-activo="${s.id}">${s.activo ? "Desactivar" : "Activar"}</button></td></tr>`).join("") + "</tbody>";
+
+  pintarAjustes();
+  graficar(por_hora);
+  latido();
+}
+
+function graficar(horas) {
+  const caja = $("grafico");
+  if (!horas.length) { caja.innerHTML = `<p class="tenue">Las barras aparecen con las primeras llegadas.</p>`; return; }
+  const W = 640, H = 240, M = { t: 12, r: 8, b: 26, l: 32 };
+  const max = Math.max(4, ...horas.flatMap((h) => [h.llegadas, h.atendidos, h.pronostico]));
+  const paso = Math.ceil(max / 4);
+  const tope = paso * 4;
+  const ancho = (W - M.l - M.r) / horas.length;
+  const barra = Math.min(22, (ancho - 10) / 2);
+  const y = (v) => M.t + (H - M.t - M.b) * (1 - v / tope);
+  const base = y(0);
+  // Barras con extremo redondeado (4px) apoyadas en la base.
+  const rect = (x, v, color) => {
+    if (!v) return "";
+    const top = y(v), r = Math.min(4, (base - top) / 2);
+    return `<path d="M${x},${base} V${top + r} Q${x},${top} ${x + r},${top} H${x + barra - r} Q${x + barra},${top} ${x + barra},${top + r} V${base} Z" fill="${color}"/>`;
+  };
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Llegadas y atendidos por hora">`;
+  for (let i = 0; i <= 4; i++) {
+    const v = paso * i;
+    svg += `<line class="rejilla-l" x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}"/><text class="eje" x="${M.l - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  let pron = "";
+  horas.forEach((h, i) => {
+    const x0 = M.l + i * ancho + (ancho - barra * 2 - 2) / 2;
+    svg += rect(x0, h.llegadas, "var(--serie-1)") + rect(x0 + barra + 2, h.atendidos, "var(--serie-2)");
+    svg += `<text class="eje" x="${M.l + i * ancho + ancho / 2}" y="${H - 8}" text-anchor="middle">${h.hora}h</text>`;
+    const cx = M.l + i * ancho + ancho / 2;
+    if (h.pronostico) pron += `${pron ? "L" : "M"}${cx},${y(h.pronostico)} `;
+    svg += `<rect x="${M.l + i * ancho}" y="${M.t}" width="${ancho}" height="${base - M.t}" fill="transparent" data-i="${i}"/>`;
+  });
+  if (pron) svg += `<path d="${pron}" fill="none" stroke="var(--tinta-2)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  svg += `</svg><div class="globo oculto" id="globo"></div>`;
+  caja.innerHTML = svg;
+  const globo = $("globo");
+  caja.querySelectorAll("[data-i]").forEach((r) => {
+    r.addEventListener("mouseenter", () => {
+      const h = horas[Number(r.dataset.i)];
+      globo.innerHTML = `<b>${h.hora}:00</b> · ${h.llegadas} llegadas · ${h.atendidos} atendidos<br>pronóstico ${h.pronostico} · espera ${duracion(h.espera_promedio_min)} · ${h.modulos_recomendados ?? "—"} módulos rec.`;
+      const caj = caja.getBoundingClientRect(), b = r.getBoundingClientRect();
+      globo.style.left = `${Math.min(Math.max(b.left - caj.left + b.width / 2, 120), caj.width - 120)}px`;
+      globo.style.top = `${b.top - caj.top + 20}px`;
+      globo.classList.remove("oculto");
+    });
+    r.addEventListener("mouseleave", () => globo.classList.add("oculto"));
+  });
+}
+
+function latido() {
+  document.querySelectorAll("[data-desde]").forEach((el) => { el.textContent = reloj(segundosDesde(el.dataset.desde)); });
+}
+setInterval(latido, 1000);
+setInterval(pedirPanel, 30000);
+
+$("csv").addEventListener("click", async (e) => {
+  if (!pin) return;  // sin PIN, el enlace normal sirve
+  e.preventDefault();
+  const r = await fetch("/api/historial.csv", { headers: { "X-Pin": pin } });
+  const url = URL.createObjectURL(await r.blob());
+  Object.assign(document.createElement("a"), { href: url, download: "turnos.csv" }).click();
+});
+
+const pedir = enCola(pedirPanel, 300);
+conectar((m) => m.t === "cambio" && pedir(), $("conexion"));
+</script>
+</body>
+</html>

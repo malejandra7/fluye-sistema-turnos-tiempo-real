@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi turno · Fluye</title>
+<link rel="icon" href="/static/icono.svg">
+<link rel="stylesheet" href="/static/estilos.css">
+<style>
+  main { max-width: 460px; margin: 0 auto; padding: 24px 16px; display: grid; gap: 18px; }
+  .codigo { font: 700 clamp(4rem, 22vw, 6rem)/1 var(--serif); letter-spacing: -0.02em; text-align: center; }
+  .cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cifras b { display: block; font: 600 1.8rem var(--serif); }
+  .llamado { background: var(--acento); color: #fff; border-radius: var(--radio); padding: 28px 20px; text-align: center; display: grid; gap: 8px; }
+  .llamado h1 { font-size: 2.4rem; }
+  .avance { height: 8px; background: var(--papel-2); border-radius: 4px; overflow: hidden; }
+  .avance div { height: 100%; background: var(--tinta); transition: width .6s; }
+</style>
+</head>
+<body>
+<header class="barra">
+  <span class="marca">Fluye<b>.</b> <span class="etiqueta">Mi turno</span></span>
+  <span class="conexion" id="conexion">Conectando…</span>
+</header>
+<main aria-live="polite">
+  <div style="text-align:center">
+    <p class="etiqueta" id="servicio"></p>
+    <div class="codigo" id="codigo">…</div>
+  </div>
+
+  <div class="llamado oculto" id="caja-llamado" role="alert">
+    <p class="etiqueta" style="color:#fff">¡Es tu turno!</p>
+    <h1 id="llamado-modulo"></h1>
+    <p>Acércate ahora, te están esperando.</p>
+  </div>
+
+  <div class="tarjeta oculto" id="caja-espera" style="display:grid;gap:16px">
+    <div class="cifras">
+      <div><span class="etiqueta">Personas antes</span><b id="antes"></b></div>
+      <div><span class="etiqueta">Te llaman en</span><b id="espera"></b></div>
+    </div>
+    <div class="avance"><div id="avance" style="width:0"></div></div>
+    <p class="tenue" id="nota"></p>
+  </div>
+
+  <div class="tarjeta oculto" id="caja-fin" style="text-align:center">
+    <h2 id="fin-titulo"></h2>
+    <p class="tenue" id="fin-texto" style="margin-top:6px"></p>
+  </div>
+
+  <button class="fantasma oculto" id="btn-avisos">Avisarme con sonido y vibración</button>
+</main>
+
+<script type="module">
+import { api, conectar, enCola, duracion, campana } from "/static/comun.js";
+
+const $ = (id) => document.getElementById(id);
+const token = location.pathname.split("/").pop();
+let estadoPrevio = null;
+let posicionInicial = null;
+let alertas = false;
+
+$("btn-avisos").onclick = () => { alertas = true; campana([440]); $("btn-avisos").textContent = "Avisos activados ✓"; $("btn-avisos").disabled = true; };
+
+async function refrescar() {
+  let t;
+  try { t = await api(`/api/tickets/${token}`); }
+  catch (err) { $("codigo").textContent = "—"; $("servicio").textContent = err.message; return; }
+  $("codigo").textContent = t.codigo;
+  $("servicio").textContent = t.servicio + (t.prioridad === "preferencial" ? " · Preferencial" : "");
+  const esperando = t.estado === "espera";
+  $("caja-espera").classList.toggle("oculto", !esperando);
+  $("caja-llamado").classList.toggle("oculto", t.estado !== "atendiendo");
+  $("caja-fin").classList.toggle("oculto", !["finalizado", "ausente", "cancelado"].includes(t.estado));
+  $("btn-avisos").classList.toggle("oculto", !esperando);
+
+  if (esperando) {
+    const antes = t.posicion - 1;
+    posicionInicial ??= Math.max(1, antes);
+    $("antes").textContent = antes;
+    $("espera").textContent = t.espera_min === null ? "—" : (t.espera_min < 1 ? "ya casi" : `~${duracion(t.espera_min)}`);
+    $("avance").style.width = `${Math.round(100 * (1 - antes / posicionInicial))}%`;
+    $("nota").textContent = t.capacidad.en_pausa
+      ? `Hay ${t.capacidad.activos} módulos atendiendo ahora; la estimación ya cuenta las pausas del equipo.`
+      : `Hay ${t.capacidad.activos} módulos atendiendo. Esta página se actualiza sola.`;
+    document.title = `${t.codigo} · ${antes} antes · Fluye`;
+  }
+  if (t.estado === "atendiendo") {
+    $("llamado-modulo").textContent = `Módulo ${t.modulo}`;
+    document.title = `¡${t.codigo}: módulo ${t.modulo}!`;
+    if (estadoPrevio === "espera") {
+      if (alertas) campana([660, 880, 660, 880]);
+      navigator.vibrate?.([300, 150, 300, 150, 600]);
+    }
+  }
+  if (t.estado === "finalizado") { $("fin-titulo").textContent = "¡Gracias por tu visita!"; $("fin-texto").textContent = "Tu atención terminó."; }
+  if (t.estado === "ausente") { $("fin-titulo").textContent = "Te llamamos y no te encontramos"; $("fin-texto").textContent = "Si sigues aquí, acércate a recepción o pide un turno nuevo."; }
+  estadoPrevio = t.estado;
+}
+
+const pedir = enCola(refrescar);
+conectar((m) => m.t === "cambio" && pedir(), $("conexion"));
+setInterval(refrescar, 30000);
+</script>
+</body>
+</html>

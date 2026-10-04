@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluye · Turnos en tiempo real</title>
+<link rel="icon" href="/static/icono.svg">
+<link rel="stylesheet" href="/static/estilos.css">
+<style>
+  main { max-width: 1040px; margin: 0 auto; padding: 8vh 24px; display: grid; gap: 36px; }
+  .titular { display: grid; gap: 14px; max-width: 720px; }
+  .titular h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
+  .titular p { font-size: 1.15rem; color: var(--tinta-2); }
+  .puertas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .puerta { display: grid; gap: 8px; text-decoration: none; padding: 22px; transition: border-color .15s, transform .15s; }
+  .puerta:hover { border-color: var(--tinta); transform: translateY(-2px); }
+  .puerta h2 { display: flex; justify-content: space-between; }
+  .puerta h2::after { content: "→"; color: var(--acento); }
+  @media (max-width: 640px) { main { padding: 32px 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="titular">
+    <p class="etiqueta">Fluye · gestión de turnos</p>
+    <h1>La fila se mueve sola.<br>Tu equipo también descansa.</h1>
+    <p>Turnos en tiempo real, asignación automática, tiempos que se aprenden solos y pausas que se reparten sin dejar la fila descubierta.</p>
+  </div>
+  <div class="puertas">
+    <a class="tarjeta puerta" href="/kiosco"><span class="etiqueta">Para quien llega</span><h2>Kiosco</h2><p class="tenue">Pide turno con la cédula y llévate el seguimiento en el celular.</p></a>
+    <a class="tarjeta puerta" href="/modulo"><span class="etiqueta">Para quien atiende</span><h2>Módulo</h2><p class="tenue">Ve la fila en vivo, toma o recibe turnos y marca tus pausas.</p></a>
+    <a class="tarjeta puerta" href="/pantalla"><span class="etiqueta">Para la sala</span><h2>Pantalla</h2><p class="tenue">Llamados con voz y sonido, y la espera actual.</p></a>
+    <a class="tarjeta puerta" href="/panel"><span class="etiqueta">Para quien dirige</span><h2>Panel</h2><p class="tenue">Indicadores, equipo, pronóstico, dotación y ajustes.</p></a>
+  </div>
+</main>
+</body>
+</html>

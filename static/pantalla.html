@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pantalla · Fluye</title>
+<link rel="icon" href="/static/icono.svg">
+<link rel="stylesheet" href="/static/estilos.css">
+<style>
+  body { height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+  .tv { display: grid; grid-template-columns: 1.6fr 1fr; min-height: 0; }
+  @media (max-width: 800px) { body { height: auto; overflow: auto; } .tv { grid-template-columns: 1fr; } }
+  .principal { display: grid; place-content: center; text-align: center; gap: 2vh; padding: 4vh 3vw; border-right: 1px solid var(--linea); }
+  .principal .codigo { font: 700 clamp(5rem, 17vw, 16rem)/0.9 var(--serif); letter-spacing: -0.03em; }
+  .principal .modulo { font: 600 clamp(1.6rem, 4.5vw, 4rem)/1 var(--serif); color: var(--acento); }
+  .principal.destello .codigo { animation: destello 1s ease-in-out 3; }
+  @keyframes destello { 50% { color: var(--acento); } }
+  @media (prefers-reduced-motion: reduce) { .principal.destello .codigo { animation: none; } }
+  .lateral { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; }
+  .lateral h2 { padding: 2.4vh 2vw 1.2vh; font-size: clamp(1rem, 1.6vw, 1.5rem); }
+  .lista { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+  .lista li { display: flex; justify-content: space-between; align-items: baseline; padding: 1.6vh 2vw; border-top: 1px solid var(--linea); font: 600 clamp(1.4rem, 3vw, 2.6rem) var(--serif); }
+  .lista li span:last-child { font: 500 clamp(.9rem, 1.6vw, 1.4rem) var(--mono); color: var(--tinta-2); }
+  .lista li.fin { opacity: .45; }
+  .datos { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--linea); }
+  .datos div { padding: 2vh 1.5vw; display: grid; gap: 4px; border-left: 1px solid var(--linea); }
+  .datos div:first-child { border-left: 0; }
+  .datos b { font: 600 clamp(1.3rem, 2.6vw, 2.4rem)/1 var(--serif); }
+  .hora { font: 600 1.4rem var(--mono); }
+  .activar { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: grid; place-items: center; z-index: 10; }
+  .activar button { font-size: 1.4rem; padding: 20px 36px; }
+</style>
+</head>
+<body>
+<header class="barra">
+  <span class="marca">Fluye<b>.</b> <span class="etiqueta">Turnos</span></span>
+  <div style="display:flex;gap:18px;align-items:center">
+    <span class="conexion" id="conexion">Conectando…</span>
+    <span class="hora" id="hora"></span>
+  </div>
+</header>
+<main class="tv">
+  <section class="principal" id="principal" aria-live="assertive">
+    <p class="etiqueta" style="font-size:clamp(.8rem,1.4vw,1.2rem)">Turno llamado</p>
+    <div class="codigo" id="codigo">—</div>
+    <div class="modulo" id="modulo">Esperando turnos</div>
+  </section>
+  <section class="lateral">
+    <h2>Últimos llamados</h2>
+    <ul class="lista" id="lista"></ul>
+    <div class="datos">
+      <div><span class="etiqueta">En espera</span><b id="d-espera">—</b></div>
+      <div><span class="etiqueta">Espera aprox.</span><b id="d-tiempo">—</b></div>
+      <div><span class="etiqueta">Módulos</span><b id="d-modulos">—</b></div>
+    </div>
+  </section>
+</main>
+<div class="activar" id="activar">
+  <button class="acento" id="btn-activar">Activar sonido y voz</button>
+</div>
+
+<script type="module">
+import { api, conectar, enCola, duracion, esc, campana } from "/static/comun.js";
+
+const $ = (id) => document.getElementById(id);
+let sonido = false;
+const cola = [];
+let anunciando = false;
+
+$("btn-activar").onclick = () => { sonido = true; campana([440]); $("activar").remove(); };
+
+// "PA-007" → "P A, 7"; así la voz lo dice claro.
+function paraVoz(codigo) {
+  const [letras, numero] = codigo.split("-");
+  return `${letras.split("").join(" ")}, ${Number(numero)}`;
+}
+
+function anunciar() {
+  if (anunciando || !cola.length) return;
+  anunciando = true;
+  const { codigo, modulo } = cola.shift();
+  $("codigo").textContent = codigo;
+  $("modulo").textContent = `Módulo ${modulo}`;
+  const p = $("principal");
+  p.classList.remove("destello"); void p.offsetWidth; p.classList.add("destello");
+  if (sonido) {
+    campana();
+    const voz = new SpeechSynthesisUtterance(`Turno ${paraVoz(codigo)}. Módulo ${modulo}.`);
+    voz.lang = "es-CO";
+    voz.rate = 0.9;
+    setTimeout(() => speechSynthesis.speak(voz), 700);
+  }
+  // Un llamado a la vez, con tiempo para leerlo.
+  setTimeout(() => { anunciando = false; anunciar(); }, 5000);
+}
+
+async function refrescar() {
+  const p = await api("/api/publico");
+  $("lista").innerHTML = p.llamados.map((l) =>
+    `<li class="${l.estado === "finalizado" ? "fin" : ""}"><span>${esc(l.codigo)}</span><span>Módulo ${esc(l.modulo)}</span></li>`).join("");
+  if (!anunciando && p.llamados[0] && $("codigo").textContent === "—") {
+    $("codigo").textContent = p.llamados[0].codigo;
+    $("modulo").textContent = `Módulo ${p.llamados[0].modulo}`;
+  }
+  $("d-espera").textContent = p.en_espera;
+  $("d-tiempo").textContent = p.espera_nuevo_min === null ? "—" : duracion(p.espera_nuevo_min);
+  $("d-modulos").textContent = p.capacidad.activos;
+}
+
+setInterval(() => {
+  $("hora").textContent = new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+}, 1000);
+setInterval(refrescar, 30000);
+
+const pedir = enCola(refrescar);
+conectar((m) => {
+  if (m.t === "llamado") { cola.push(m); anunciar(); }
+  pedir();
+}, $("conexion"));
+</script>
+</body>
+</html>
