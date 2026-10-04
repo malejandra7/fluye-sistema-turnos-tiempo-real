@@ -6,6 +6,8 @@ Fluye es un sistema de gestión de turnos para centros de atención al público.
 
 [![Ver el video demostrativo (3 min)](docs/portada_video.jpg)](https://youtu.be/75AvdWNWt8w)
 
+🟢 **[Probar la demo en vivo](https://fluye-demo.onrender.com)**: pide un turno en el kiosco, abre un módulo y atiéndelo. *Si lleva rato sin visitas, tarda cerca de un minuto en despertar.*
+
 ▶️ **[Ver el video demostrativo en YouTube (3 min)](https://youtu.be/75AvdWNWt8w)**: el problema, la solución funcionando y los resultados.
 
 > **Proyecto personal.** No lo implementé en la entidad donde trabajé ni lo encargó esa organización. Lo diseñé y desarrollé después, por mi cuenta, a partir de lo que observé trabajando en un centro de atención al ciudadano: cómo llegaba la gente al kiosco, cuánto esperaba y cómo se congestionaba todo a la hora del almuerzo.
@@ -51,6 +53,8 @@ Las cifras son una estimación propia a partir de la observación diaria, no dat
 **Fluye** is a real-time queue management system for public service centers. It is a personal project, built after observing daily customer flow in a citizen service center, where a fixed ticket quota (~40/hour) exceeded real capacity (~30/hour) and created 40+ people of backlog by noon, while staff had no planned breaks.
 
 Fluye adjusts capacity to the counters that are actually serving, learns real service times per service and priority, recommends fair staggered breaks and forecasts staffing needs per hour with Erlang C. It includes a touch kiosk, live mobile tracking via QR, an agent console with automatic assignment, a lobby display with voice calls and a manager dashboard.
+
+**Live demo:** https://fluye-demo.onrender.com · **Video:** https://youtu.be/75AvdWNWt8w
 
 **Stack:** Python, FastAPI, WebSocket, SQLite, vanilla JavaScript, pytest, Playwright, Docker. Validated with 30 automated tests and a 20-business-day simulation (~3,700 tickets).
 
@@ -125,7 +129,7 @@ El modo `vivo` acelera las llegadas, así que las atenciones de esa sesión dura
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/malejandra7/fluye-sistema-turnos-tiempo-real)
 
-El botón publica una demo gratuita en [Render](https://render.com) usando `render.yaml`. La demo arranca con 20 días de historial, dos módulos simulados atendiendo y gente llegando sola. Los ajustes quedan de solo lectura, y un aviso pide usar cédulas inventadas. En el plan gratuito, la demo se duerme tras 15 minutos sin visitas: la primera visita tarda cerca de un minuto en despertarla, y los datos se reinician solos.
+La demo en vivo está en https://fluye-demo.onrender.com. El botón publica una copia propia, gratuita, en [Render](https://render.com) usando `render.yaml`. La demo arranca con 20 días de historial, dos módulos simulados atendiendo y gente llegando sola. Los ajustes quedan de solo lectura, y un aviso pide usar cédulas inventadas. En el plan gratuito, la demo se duerme tras 15 minutos sin visitas: la primera visita tarda cerca de un minuto en despertarla, y los datos se reinician solos.
 
 ### Configuración
 
