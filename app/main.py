@@ -1,9 +1,12 @@
 """Servidor web de Fluye: API, pantallas y canal en tiempo real."""
 from __future__ import annotations
 
+import asyncio
 import io
 import os
-from datetime import date, timedelta
+import re
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import qrcode
@@ -16,6 +19,25 @@ from pydantic import BaseModel
 from .central import Central, ErrorTurno
 
 ESTATICOS = Path(__file__).resolve().parent.parent / "static"
+_FECHA_SIN_ZONA = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?")
+
+
+def _con_zona(valor, zona: str):
+    """Agrega la zona horaria del servidor a las fechas, para que los navegadores
+    de otras zonas calculen bien los cronómetros."""
+    if isinstance(valor, str) and _FECHA_SIN_ZONA.fullmatch(valor):
+        return valor + zona
+    if isinstance(valor, dict):
+        return {k: _con_zona(v, zona) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [_con_zona(v, zona) for v in valor]
+    return valor
+
+
+class RespuestaConZona(JSONResponse):
+    def render(self, contenido) -> bytes:
+        z = datetime.now().astimezone().strftime("%z")
+        return super().render(_con_zona(contenido, f"{z[:3]}:{z[3:]}"))
 
 
 class Canal:
@@ -72,9 +94,25 @@ class Servicio(BaseModel):
     activo: bool = True
 
 
-def crear_app(ruta_db: str | None = None, central: Central | None = None) -> FastAPI:
-    app = FastAPI(title="Fluye", description="Gestión de turnos en tiempo real")
-    central = central or Central(ruta_db or os.environ.get("FLUYE_DB", "fluye.db"))
+def crear_app(ruta_db: str | None = None, central: Central | None = None,
+              demo: bool | None = None) -> FastAPI:
+    demo = bool(os.environ.get("FLUYE_DEMO")) if demo is None else demo
+    ruta_db = ruta_db or os.environ.get("FLUYE_DB", "fluye.db")
+    central = central or Central(ruta_db)
+
+    @asynccontextmanager
+    async def ciclo_de_vida(_app):
+        tarea = None
+        if demo:
+            from . import demo as modo_demo
+            modo_demo.preparar(central, ruta_db)
+            tarea = asyncio.create_task(modo_demo.ciclo(central))
+        yield
+        if tarea:
+            tarea.cancel()
+
+    app = FastAPI(title="Fluye", description="Gestión de turnos en tiempo real",
+                  default_response_class=RespuestaConZona, lifespan=ciclo_de_vida)
     canal = Canal()
     central.avisar = canal.enviar
     app.state.central = central
@@ -83,6 +121,10 @@ def crear_app(ruta_db: str | None = None, central: Central | None = None) -> Fas
     def gestor(x_pin: str | None = Header(default=None)):
         if pin and x_pin != pin:
             raise HTTPException(401, "PIN del gestor incorrecto.")
+
+    def editable():
+        if demo:
+            raise HTTPException(403, "En la demo pública los ajustes son de solo lectura.")
 
     @app.exception_handler(ErrorTurno)
     async def _error_turno(_: Request, exc: ErrorTurno):
@@ -123,7 +165,7 @@ def crear_app(ruta_db: str | None = None, central: Central | None = None) -> Fas
 
     @app.get("/api/publico")
     def publico():
-        return central.estado_publico()
+        return {**central.estado_publico(), "demo": demo}
 
     # --- módulos ---------------------------------------------------------
     @app.post("/api/agentes/entrar")
@@ -165,12 +207,12 @@ def crear_app(ruta_db: str | None = None, central: Central | None = None) -> Fas
     def panel():
         return central.estado_panel()
 
-    @app.put("/api/ajustes", dependencies=[Depends(gestor)])
+    @app.put("/api/ajustes", dependencies=[Depends(gestor), Depends(editable)])
     async def ajustes(cambios: dict):
         await central.guardar_ajustes(cambios)
         return central.ajustes()
 
-    @app.post("/api/servicios", dependencies=[Depends(gestor)])
+    @app.post("/api/servicios", dependencies=[Depends(gestor), Depends(editable)])
     async def guardar_servicio(datos: Servicio):
         await central.guardar_servicio(datos.nombre, datos.prefijo, datos.id, datos.activo)
         return central.servicios(todos=True)

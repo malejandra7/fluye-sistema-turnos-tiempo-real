@@ -121,12 +121,20 @@ python simulador.py vivo --modulos 3 --ritmo 30            # llegadas y módulos
 
 El modo `vivo` acelera las llegadas, así que las atenciones de esa sesión duran segundos y bajan los promedios del día. Úsalo con una base de demostración, no con la real.
 
+### Demo pública en internet
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/malejandra7/fluye-sistema-turnos-tiempo-real)
+
+El botón publica una demo gratuita en [Render](https://render.com) usando `render.yaml`. La demo arranca con 20 días de historial, dos módulos simulados atendiendo y gente llegando sola. Los ajustes quedan de solo lectura, y un aviso pide usar cédulas inventadas. En el plan gratuito, la demo se duerme tras 15 minutos sin visitas: la primera visita tarda cerca de un minuto en despertarla, y los datos se reinician solos.
+
 ### Configuración
 
 | Variable | Para qué | Por defecto |
 |---|---|---|
 | `FLUYE_DB` | Ruta del archivo SQLite | `fluye.db` |
 | `FLUYE_PIN_GESTOR` | Si se define, el panel y los ajustes piden este PIN | sin PIN |
+| `FLUYE_DEMO` | `1` activa el modo demo pública (historial, módulos simulados, ajustes de solo lectura) | apagado |
+| `TZ` | Zona horaria del centro de atención (horarios y ventanas de pausa) | la del sistema |
 
 Todo lo demás (tiempos iniciales, pausas, ventanas, horario, metas, servicios) se edita desde `/panel`.
 

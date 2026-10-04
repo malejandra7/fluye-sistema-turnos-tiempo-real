@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -168,3 +169,21 @@ def test_tiempo_real_avisa_llamados(entorno):
     with c.websocket_connect("/ws") as ws:
         c.post(f"/api/agentes/{a}/tomar", json={})
         assert ws.receive_json() == {"t": "llamado", "codigo": "A-001", "modulo": "1"}
+
+
+def test_las_fechas_llevan_zona_horaria(entorno):
+    c, _ = entorno
+    t = turno(c, "51001")
+    creado = c.get(f"/api/tickets/{t['token']}").json()["creado_en"]
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d", creado)
+
+
+def test_demo_publica_es_de_solo_lectura(tmp_path):
+    reloj = Reloj()
+    c = TestClient(crear_app(central=Central(str(tmp_path / "d.db"), reloj=reloj), demo=False))
+    assert c.get("/api/publico").json()["demo"] is False
+    demo = TestClient(crear_app(central=Central(str(tmp_path / "e.db"), reloj=reloj), demo=True))
+    publico = demo.get("/api/publico").json()
+    assert publico["demo"] is True
+    assert demo.put("/api/ajustes", json={"minutos_atencion_inicial": 1}).status_code == 403
+    assert demo.post("/api/servicios", json={"nombre": "X", "prefijo": "X"}).status_code == 403

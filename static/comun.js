@@ -107,3 +107,14 @@ export const NOMBRE_PAUSA = { desayuno: "Desayuno", almuerzo: "Almuerzo", activa
 export const NOMBRE_ESTADO = {
   disponible: "Disponible", atendiendo: "Atendiendo", pausa: "En pausa", desconectado: "Fuera",
 };
+
+// En la demo pública, un aviso discreto arriba de cada pantalla.
+fetch("/api/publico").then((r) => r.json()).then((p) => {
+  if (!p.demo || location.pathname === "/pantalla" || document.getElementById("aviso-demo")) return;
+  const a = document.createElement("div");
+  a.id = "aviso-demo";
+  a.className = "aviso-demo";
+  a.innerHTML = "<b>Demo pública</b> · Datos simulados que se borran solos. Usa una cédula inventada. " +
+    "Prueba abrir el <a href='/kiosco' target='_blank'>kiosco</a> y un <a href='/modulo' target='_blank'>módulo</a> en pestañas distintas.";
+  document.body.prepend(a);
+}).catch(() => {});
