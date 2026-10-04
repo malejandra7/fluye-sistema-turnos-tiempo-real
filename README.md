@@ -4,9 +4,9 @@
 
 Fluye es un sistema de gestión de turnos para centros de atención al público. Ajusta la capacidad a los módulos que realmente están atendiendo, aprende los tiempos de atención reales y reparte las pausas del personal sin dejar la fila desatendida.
 
-[![Ver el video demostrativo (3 min)](docs/portada_video.jpg)](docs/Fluye_video.mp4)
+[![Ver el video demostrativo (3 min)](docs/portada_video.jpg)](https://youtu.be/75AvdWNWt8w)
 
-▶️ **[Ver el video demostrativo (3 min)](docs/Fluye_video.mp4)**: el problema, la solución funcionando y los resultados.
+▶️ **[Ver el video demostrativo en YouTube (3 min)](https://youtu.be/75AvdWNWt8w)**: el problema, la solución funcionando y los resultados.
 
 > **Proyecto personal.** No lo implementé en la entidad donde trabajé ni lo encargó esa organización. Lo diseñé y desarrollé después, por mi cuenta, a partir de lo que observé trabajando en un centro de atención al ciudadano: cómo llegaba la gente al kiosco, cuánto esperaba y cómo se congestionaba todo a la hora del almuerzo.
 
