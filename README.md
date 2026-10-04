@@ -34,6 +34,19 @@ Toda la lógica está en `app/motor.py`. Son funciones puras con pruebas, que se
 
 ## Empezar
 
+### Sin comandos (doble clic)
+
+| | Windows | Mac |
+|---|---|---|
+| Uso normal | `Iniciar Fluye.bat` | `Iniciar Fluye.command` |
+| Demostración con datos de ejemplo | `Demo Fluye.bat` | `Demo Fluye.command` |
+
+La primera vez, el archivo instala Python si falta (Windows, vía `winget`), prepara los componentes (necesita internet) y crea un acceso directo **Fluye** en el escritorio. Después abre el navegador ya en la dirección de red del equipo, para que los QR funcionen en los celulares. Las veces siguientes arranca en segundos.
+
+La demostración usa `demo.db` y nunca toca los datos reales (`fluye.db`).
+
+### Con comandos
+
 ```bash
 pip install -r requirements.txt
 uvicorn app.main:crear_app --factory --host 0.0.0.0 --port 8000
@@ -70,6 +83,7 @@ Todo lo demás (tiempos iniciales, pausas, ventanas, horario, metas, servicios) 
 ## Pruebas
 
 ```bash
+pip install -r requirements-dev.txt
 pytest
 ```
 
